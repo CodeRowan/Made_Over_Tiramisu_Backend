@@ -194,7 +194,8 @@ export const createContentSchema = Joi.object({
   description: Joi.string().max(2000),
   image: Joi.string().allow(''),
   images: Joi.array().items(Joi.string().allow('')).max(6),
-  videoId: Joi.string().pattern(PATTERNS.YOUTUBE_ID).messages({
+  videoUrl: Joi.string().allow('', null),
+  videoId: Joi.string().pattern(PATTERNS.YOUTUBE_ID).allow('', null).messages({
     'string.pattern.base': 'Invalid YouTube video ID',
   }),
   email: Joi.string().email().max(100).allow('').messages({

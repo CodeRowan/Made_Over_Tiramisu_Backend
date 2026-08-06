@@ -41,15 +41,6 @@ export const uploadImage = async (filePath, folder = 'mad-over-tiramisu', public
     const uploadOptions = {
       folder: folder,
       resource_type: 'auto',
-      // Auto-optimize for web
-      quality: 'auto',
-      fetch_format: 'auto',
-      transformation: [
-        {
-          quality: 'auto',
-          fetch_format: 'auto',
-        },
-      ],
     };
 
     // Add custom public ID if provided
@@ -67,14 +58,30 @@ export const uploadImage = async (filePath, folder = 'mad-over-tiramisu', public
       console.warn('Could not delete local file:', error);
     }
 
+    let thumbnailUrl = result.secure_url;
+    if (result.resource_type === 'video') {
+      try {
+        thumbnailUrl = cloudinary.url(result.public_id, {
+          resource_type: 'video',
+          format: 'jpg',
+          secure: true,
+        });
+      } catch (e) {
+        thumbnailUrl = result.secure_url.replace(/\.[^/.]+$/, '.jpg');
+      }
+    }
+
     return {
       success: true,
       imageUrl: result.secure_url,
+      videoUrl: result.resource_type === 'video' ? result.secure_url : null,
+      thumbnailUrl: thumbnailUrl,
+      resourceType: result.resource_type,
       publicId: result.public_id,
       cloudinaryId: result.id,
       size: result.bytes,
-      width: result.width,
-      height: result.height,
+      width: result.width || null,
+      height: result.height || null,
     };
   } catch (error) {
     console.error('Cloudinary Upload Error:', error);
@@ -88,34 +95,35 @@ export const uploadImage = async (filePath, folder = 'mad-over-tiramisu', public
       console.warn('Cleanup error:', cleanupError);
     }
 
-    throw ErrorTypes.INTERNAL_SERVER_ERROR('Failed to upload image');
+    throw ErrorTypes.INTERNAL_SERVER_ERROR('Failed to upload media file');
   }
 };
 
 /**
- * Delete an image from Cloudinary
+ * Delete media (image or video) from Cloudinary
  *
- * @param {string} publicId - Cloudinary public ID of image
+ * @param {string} publicId - Cloudinary public ID of image or video
+ * @param {string} resourceType - 'image' | 'video' | 'raw'
  */
-export const deleteImage = async (publicId) => {
+export const deleteImage = async (publicId, resourceType = 'image') => {
   try {
     if (!publicId) {
       throw ErrorTypes.BAD_REQUEST('Public ID is required');
     }
 
-    const result = await cloudinary.uploader.destroy(publicId);
+    const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
 
     if (result.result !== 'ok') {
-      throw ErrorTypes.INTERNAL_SERVER_ERROR('Failed to delete image');
+      throw ErrorTypes.INTERNAL_SERVER_ERROR('Failed to delete media');
     }
 
     return {
       success: true,
-      message: 'Image deleted successfully',
+      message: 'Media deleted successfully',
     };
   } catch (error) {
     console.error('Cloudinary Delete Error:', error);
-    throw ErrorTypes.INTERNAL_SERVER_ERROR('Failed to delete image');
+    throw ErrorTypes.INTERNAL_SERVER_ERROR('Failed to delete media');
   }
 };
 

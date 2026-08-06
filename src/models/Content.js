@@ -84,6 +84,12 @@ const contentSchema = new mongoose.Schema(
       // Not the full URL
     },
 
+    // Direct video URL (from Cloudinary upload or external video link)
+    videoUrl: {
+      type: String,
+      default: null,
+    },
+
     // Contact email (used by footer/contact sections)
     email: {
       type: String,

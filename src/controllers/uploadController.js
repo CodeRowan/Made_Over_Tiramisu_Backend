@@ -53,8 +53,11 @@ export const uploadImageFile = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Image uploaded successfully',
+      message: `${result.resourceType === 'video' ? 'Video' : 'Image'} uploaded successfully`,
       imageUrl: result.imageUrl,
+      videoUrl: result.videoUrl || result.imageUrl,
+      thumbnailUrl: result.thumbnailUrl || result.imageUrl,
+      resourceType: result.resourceType,
       publicId: result.publicId,
       size: result.size,
       dimensions: {
