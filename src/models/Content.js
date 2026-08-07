@@ -68,7 +68,6 @@ const contentSchema = new mongoose.Schema(
       default: null,
     },
     
-
     // Multiple image URLs (sections with several photo slots: about's two
     // photos, story's main/inset/gallery photos). Index-based — each
     // section's frontend component knows what each index renders as.
