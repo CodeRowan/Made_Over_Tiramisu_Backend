@@ -95,7 +95,7 @@ const initializeApp = async () => {
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Server is running',
+    message: 'Server is running in development',
     timestamp: new Date().toISOString(),
     environment: NODE_ENV,
   });
