@@ -16,6 +16,7 @@ import { validate, createContactSchema } from '../utils/validators.js';
 import ApiError, { ErrorTypes } from '../utils/errorHandler.js';
 import { sendContactFormEmail } from '../services/emailService.js';
 import { emitUpdate } from '../realtime.js';
+import logger from '../utils/logger.js';
 
 /**
  * Submit contact form
@@ -63,7 +64,7 @@ export const submitContactForm = async (req, res, next) => {
       contactMessage.emailSent = true;
       await contactMessage.save();
     } catch (emailError) {
-      console.error('Failed to send contact email:', emailError);
+      logger.error({ err: emailError }, 'Failed to send contact email');
       // Still save the message, but mark that email failed
       contactMessage.emailError = emailError.message;
       contactMessage.emailSent = false;

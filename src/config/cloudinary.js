@@ -17,6 +17,7 @@
  */
 
 import { v2 as cloudinary } from 'cloudinary';
+import logger from '../utils/logger.js';
 
 /**
  * Configure Cloudinary with API credentials
@@ -46,7 +47,7 @@ export const verifyCloudinaryConfig = () => {
     );
   }
 
-  console.log('✅ Cloudinary Configured');
+  logger.info('Cloudinary Configured');
 };
 
 export default cloudinary;

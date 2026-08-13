@@ -16,6 +16,7 @@ import { validate, createProductSchema, updateProductSchema } from '../utils/val
 import ApiError, { ErrorTypes } from '../utils/errorHandler.js';
 import { deleteImage, extractPublicIdFromUrl } from '../services/cloudinaryService.js';
 import { emitUpdate } from '../realtime.js';
+import logger from '../utils/logger.js';
 
 /**
  * Get all products
@@ -234,7 +235,7 @@ export const deleteProduct = async (req, res, next) => {
           await deleteImage(publicId);
         }
       } catch (imageError) {
-        console.warn('Failed to delete image from Cloudinary:', imageError);
+        logger.warn({ err: imageError }, 'Failed to delete image from Cloudinary');
         // Don't fail the product deletion if image deletion fails
       }
     }

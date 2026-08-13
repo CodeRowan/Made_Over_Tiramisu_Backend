@@ -17,6 +17,7 @@
 
 import nodemailer from 'nodemailer';
 import ApiError, { ErrorTypes } from '../utils/errorHandler.js';
+import logger from '../utils/logger.js';
 
 /**
  * Create email transporter
@@ -93,7 +94,7 @@ export const sendPasswordResetEmail = async (
     await transporter.sendMail(mailOptions);
     return { success: true, message: 'Password reset email sent' };
   } catch (error) {
-    console.error('Email Error:', error);
+    logger.error({ err: error }, 'Failed to send password reset email');
     throw ErrorTypes.INTERNAL_SERVER_ERROR(
       'Failed to send password reset email'
     );
@@ -156,7 +157,7 @@ export const sendContactFormEmail = async (ownerEmail, contactData) => {
     await transporter.sendMail(mailOptions);
     return { success: true, message: 'Contact email sent to owner' };
   } catch (error) {
-    console.error('Email Error:', error);
+    logger.error({ err: error }, 'Failed to send contact notification email');
     throw ErrorTypes.INTERNAL_SERVER_ERROR('Failed to send contact email');
   }
 };
@@ -219,7 +220,7 @@ export const sendAdminWelcomeEmail = async (email, name, tempPassword) => {
     await transporter.sendMail(mailOptions);
     return { success: true, message: 'Welcome email sent' };
   } catch (error) {
-    console.error('Email Error:', error);
+    logger.error({ err: error }, 'Failed to send admin welcome email');
     throw ErrorTypes.INTERNAL_SERVER_ERROR('Failed to send welcome email');
   }
 };

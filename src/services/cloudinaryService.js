@@ -21,6 +21,7 @@ import cloudinary from '../config/cloudinary.js';
 import fs from 'fs';
 import path from 'path';
 import ApiError, { ErrorTypes } from '../utils/errorHandler.js';
+import logger from '../utils/logger.js';
 
 /**
  * Upload an image to Cloudinary
@@ -55,7 +56,7 @@ export const uploadImage = async (filePath, folder = 'mad-over-tiramisu', public
     try {
       fs.unlinkSync(filePath);
     } catch (error) {
-      console.warn('Could not delete local file:', error);
+      logger.warn({ err: error }, 'Could not delete local file');
     }
 
     let thumbnailUrl = result.secure_url;
@@ -84,7 +85,7 @@ export const uploadImage = async (filePath, folder = 'mad-over-tiramisu', public
       height: result.height || null,
     };
   } catch (error) {
-    console.error('Cloudinary Upload Error:', error);
+    logger.error({ err: error }, 'Cloudinary Upload Error');
 
     // Clean up local file if upload failed
     try {
@@ -92,7 +93,7 @@ export const uploadImage = async (filePath, folder = 'mad-over-tiramisu', public
         fs.unlinkSync(filePath);
       }
     } catch (cleanupError) {
-      console.warn('Cleanup error:', cleanupError);
+      logger.warn({ err: cleanupError }, 'Cleanup error');
     }
 
     throw ErrorTypes.INTERNAL_SERVER_ERROR('Failed to upload media file');
@@ -122,7 +123,7 @@ export const deleteImage = async (publicId, resourceType = 'image') => {
       message: 'Media deleted successfully',
     };
   } catch (error) {
-    console.error('Cloudinary Delete Error:', error);
+    logger.error({ err: error }, 'Cloudinary Delete Error');
     throw ErrorTypes.INTERNAL_SERVER_ERROR('Failed to delete media');
   }
 };
@@ -145,7 +146,7 @@ export const getOptimizedImageUrl = (publicId, options = {}) => {
 
     return cloudinary.url(publicId, merged);
   } catch (error) {
-    console.error('URL Generation Error:', error);
+    logger.error({ err: error }, 'URL Generation Error');
     throw ErrorTypes.INTERNAL_SERVER_ERROR('Failed to generate image URL');
   }
 };
@@ -162,7 +163,7 @@ export const extractPublicIdFromUrl = (url) => {
     const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.\w+$/);
     return match ? match[1] : null;
   } catch (error) {
-    console.error('Public ID Extract Error:', error);
+    logger.error({ err: error }, 'Public ID Extract Error');
     return null;
   }
 };

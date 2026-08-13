@@ -19,13 +19,14 @@ import {
   getCurrentUser,
 } from '../controllers/authController.js';
 import { authenticate, authorize } from '../middleware/authMiddleware.js';
+import { authRateLimiter } from '../middleware/rateLimitMiddleware.js';
 
 const router = express.Router();
 
-// Public routes
-router.post('/login', login);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
+// Public routes (rate-limited: 5 attempts per 15 minutes per IP)
+router.post('/login', authRateLimiter, login);
+router.post('/forgot-password', authRateLimiter, forgotPassword);
+router.post('/reset-password', authRateLimiter, resetPassword);
 
 // Protected routes (require authentication)
 router.post('/change-password', authenticate, changePassword);

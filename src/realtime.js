@@ -13,6 +13,7 @@
  */
 
 import { Server } from 'socket.io';
+import logger from './utils/logger.js';
 
 let io = null;
 
@@ -30,7 +31,7 @@ export const initRealtime = (httpServer) => {
     });
   });
 
-  console.log('✅ Realtime (Socket.IO) ready');
+  logger.info('Realtime (Socket.IO) ready');
 
   return io;
 };

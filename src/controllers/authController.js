@@ -23,6 +23,7 @@ import { generateToken } from '../utils/tokenUtils.js';
 import { validate, loginSchema, changePasswordSchema, resetPasswordSchema, forgotPasswordSchema } from '../utils/validators.js';
 import ApiError, { ErrorTypes } from '../utils/errorHandler.js';
 import { sendPasswordResetEmail, sendAdminWelcomeEmail } from '../services/emailService.js';
+import logger from '../utils/logger.js';
 
 /**
  * Login with email and password
@@ -147,7 +148,7 @@ export const register = async (req, res, next) => {
     try {
       await sendAdminWelcomeEmail(newUser.email, newUser.name, password);
     } catch (emailError) {
-      console.warn('Welcome email failed to send:', emailError);
+      logger.warn({ err: emailError }, 'Welcome email failed to send');
       // Don't fail the request if email fails
     }
 

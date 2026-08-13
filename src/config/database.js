@@ -12,6 +12,8 @@
  */
 
 import mongoose from 'mongoose';
+import * as Sentry from '@sentry/node';
+import logger from '../utils/logger.js';
 
 /**
  * Connect to MongoDB Atlas
@@ -40,10 +42,12 @@ export const connectDB = async () => {
       useUnifiedTopology: true,
     });
 
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+    logger.info({ host: conn.connection.host }, 'MongoDB Connected');
     return conn;
   } catch (error) {
-    console.error(`❌ Database Connection Error: ${error.message}`);
+    logger.error({ err: error }, 'Database Connection Error');
+    Sentry.captureException(error);
+    await Sentry.flush(2000);
 
     // Exit process with failure code
     process.exit(1);
@@ -57,9 +61,11 @@ export const connectDB = async () => {
 export const disconnectDB = async () => {
   try {
     await mongoose.disconnect();
-    console.log('✅ MongoDB Disconnected');
+    logger.info('MongoDB Disconnected');
   } catch (error) {
-    console.error(`❌ Disconnect Error: ${error.message}`);
+    logger.error({ err: error }, 'Disconnect Error');
+    Sentry.captureException(error);
+    await Sentry.flush(2000);
     process.exit(1);
   }
 };

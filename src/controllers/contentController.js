@@ -15,6 +15,7 @@ import { validate, createContentSchema } from '../utils/validators.js';
 import ApiError, { ErrorTypes } from '../utils/errorHandler.js';
 import { deleteImage, extractPublicIdFromUrl } from '../services/cloudinaryService.js';
 import { emitUpdate } from '../realtime.js';
+import logger from '../utils/logger.js';
 
 /**
  * Get content for a specific section
@@ -158,7 +159,7 @@ export const updateContent = async (req, res, next) => {
             await deleteImage(publicId);
           }
         } catch (imageError) {
-          console.warn('Failed to delete old image:', imageError);
+          logger.warn({ err: imageError }, 'Failed to delete old image');
         }
       }
 

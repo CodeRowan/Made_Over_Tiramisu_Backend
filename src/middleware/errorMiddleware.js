@@ -15,6 +15,7 @@
  */
 
 import ApiError from '../utils/errorHandler.js';
+import logger from '../utils/logger.js';
 
 /**
  * Global error handler
@@ -27,14 +28,6 @@ export const errorHandler = (err, req, res, next) => {
   let statusCode = err.statusCode || 500;
   let message = err.message || 'Internal Server Error';
   let errors = err.errors || [];
-
-  // Log error for debugging (in production, use proper logging service)
-  console.error(`[${new Date().toISOString()}] Error:`, {
-    statusCode,
-    message,
-    errors,
-    stack: err.stack,
-  });
 
   // Handle Joi validation errors
   if (err.isJoi) {
@@ -67,6 +60,25 @@ export const errorHandler = (err, req, res, next) => {
   if (err.name === 'CastError') {
     statusCode = 400;
     message = `Invalid ${err.path}: ${err.value}`;
+  }
+
+  // Log error for debugging, using the final (corrected) status code. 5xx
+  // (unexpected/bug) logs at error level and is picked up by Sentry via
+  // setupExpressErrorHandler in server.js; 4xx (expected — bad input, auth,
+  // not found) logs at warn level so it doesn't drown out real errors or
+  // trigger Sentry alerts.
+  const logPayload = {
+    method: req.method,
+    path: req.originalUrl,
+    statusCode,
+    message,
+    errors,
+    stack: err.stack,
+  };
+  if (statusCode >= 500) {
+    logger.error(logPayload, 'Request failed');
+  } else {
+    logger.warn(logPayload, 'Request rejected');
   }
 
   // Send error response to client

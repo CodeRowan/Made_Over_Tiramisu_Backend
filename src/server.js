@@ -14,10 +14,14 @@
  * Environment: Read from NODE_ENV (development, production, test)
  */
 
+// Must be the very first import: Sentry.init() needs to run before express,
+// mongoose, routes, etc. are loaded. See instrument.js for why.
+import { Sentry } from './instrument.js';
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import morgan from 'morgan';
+import pinoHttp from 'pino-http';
 import { createServer } from 'http';
 
 // IMPORTANT: Load environment variables FIRST before importing anything that uses them
@@ -27,6 +31,7 @@ dotenv.config();
 import { connectDB } from './config/database.js';
 import { verifyCloudinaryConfig } from './config/cloudinary.js';
 import { initRealtime } from './realtime.js';
+import logger from './utils/logger.js';
 
 // Import middleware
 import {
@@ -42,6 +47,12 @@ const httpServer = createServer(app);
 initRealtime(httpServer);
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Trust Vercel's proxy so req.ip reflects the real client IP (from
+// X-Forwarded-For) instead of Vercel's internal address. Required for
+// express-rate-limit to key on the correct IP — without this it either
+// throttles all users as one client or throws at startup.
+app.set('trust proxy', 1);
 
 // ============================================
 // Global Middleware (runs on every request)
@@ -59,9 +70,9 @@ app.use(
 // Body parser - Parse JSON from request body
 app.use(express.json({ limit: '10kb' })); // 10kb limit to prevent large payloads
 
-// HTTP request logger
-// Shows all incoming requests in console
-app.use(morgan(NODE_ENV === 'development' ? 'dev' : 'combined'));
+// HTTP request logger - structured, leveled log per request (method, path,
+// status, response time, a correlation id) instead of a plain text line
+app.use(pinoHttp({ logger }));
 
 // ============================================
 // Startup Tasks
@@ -73,7 +84,7 @@ app.use(morgan(NODE_ENV === 'development' ? 'dev' : 'combined'));
  */
 const initializeApp = async () => {
   try {
-    console.log('🚀 Starting Mad Over Tiramisu Backend...');
+    logger.info('Starting Mad Over Tiramisu Backend...');
 
     // Connect to MongoDB
     await connectDB();
@@ -81,9 +92,11 @@ const initializeApp = async () => {
     // Verify Cloudinary configuration
     verifyCloudinaryConfig();
 
-    console.log(`✅ Application initialized in ${NODE_ENV} mode`);
+    logger.info({ environment: NODE_ENV }, 'Application initialized');
   } catch (error) {
-    console.error('❌ Failed to initialize application:', error.message);
+    logger.error({ err: error }, 'Failed to initialize application');
+    Sentry.captureException(error);
+    await Sentry.flush(2000);
     process.exit(1);
   }
 };
@@ -152,7 +165,17 @@ app.use('/api/locations', locationRoutes);
 // 404 handler - catches undefined routes
 app.use(notFoundHandler);
 
-// Global error handler - catches all errors
+// Reports unexpected (5xx / uncaught) errors to Sentry with full request
+// context. Must be registered after routes/notFoundHandler and before the
+// app's own error handler below.
+Sentry.setupExpressErrorHandler(app, {
+  shouldHandleError(error) {
+    const statusCode = error.statusCode || error.status || 500;
+    return statusCode >= 500;
+  },
+});
+
+// Global error handler - catches all errors, formats the JSON response
 app.use(errorHandler);
 
 // ============================================
@@ -171,15 +194,12 @@ const startServer = async () => {
     // Start listening (on the http server, not app directly, so Socket.IO
     // can share the same port)
     httpServer.listen(PORT, () => {
-      console.log(`\n${'='.repeat(50)}`);
-      console.log(`✨ Server is running on port ${PORT}`);
-      console.log(`📍 URL: http://localhost:${PORT}`);
-      console.log(`🔗 API: http://localhost:${PORT}/api`);
-      console.log(`🏥 Health: http://localhost:${PORT}/api/health`);
-      console.log(`${'='.repeat(50)}\n`);
+      logger.info({ port: PORT, environment: NODE_ENV }, 'Server is running');
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    logger.error({ err: error }, 'Failed to start server');
+    Sentry.captureException(error);
+    await Sentry.flush(2000);
     process.exit(1);
   }
 };
@@ -189,14 +209,18 @@ const startServer = async () => {
 // ============================================
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (err) => {
-  console.error('❌ Unhandled Rejection:', err);
+process.on('unhandledRejection', async (err) => {
+  logger.error({ err }, 'Unhandled Rejection');
+  Sentry.captureException(err);
+  await Sentry.flush(2000);
   process.exit(1);
 });
 
 // Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
-  console.error('❌ Uncaught Exception:', err);
+process.on('uncaughtException', async (err) => {
+  logger.error({ err }, 'Uncaught Exception');
+  Sentry.captureException(err);
+  await Sentry.flush(2000);
   process.exit(1);
 });
 

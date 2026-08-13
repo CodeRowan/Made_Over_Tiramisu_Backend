@@ -18,6 +18,7 @@ import {
 import { ErrorTypes } from '../utils/errorHandler.js';
 import { deleteImage, extractPublicIdFromUrl } from '../services/cloudinaryService.js';
 import { emitUpdate } from '../realtime.js';
+import logger from '../utils/logger.js';
 
 /**
  * Get all Instagram posts
@@ -112,7 +113,7 @@ export const updateInstagramPost = async (req, res, next) => {
         const publicId = extractPublicIdFromUrl(oldValue.image);
         if (publicId) await deleteImage(publicId);
       } catch (imageError) {
-        console.warn('Failed to delete old image:', imageError);
+        logger.warn({ err: imageError }, 'Failed to delete old image');
       }
     }
 
@@ -165,7 +166,7 @@ export const deleteInstagramPost = async (req, res, next) => {
         const publicId = extractPublicIdFromUrl(post.image);
         if (publicId) await deleteImage(publicId);
       } catch (imageError) {
-        console.warn('Failed to delete image from Cloudinary:', imageError);
+        logger.warn({ err: imageError }, 'Failed to delete image from Cloudinary');
       }
     }
 
