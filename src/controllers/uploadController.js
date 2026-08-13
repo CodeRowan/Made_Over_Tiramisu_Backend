@@ -13,7 +13,10 @@
  */
 
 import ApiError, { ErrorTypes } from '../utils/errorHandler.js';
-import { uploadImage } from '../services/cloudinaryService.js';
+import {
+  uploadImage,
+  getOrCreateVideoUploadPreset,
+} from '../services/cloudinaryService.js';
 import ActivityLog from '../models/ActivityLog.js';
 
 /**
@@ -65,6 +68,70 @@ export const uploadImageFile = async (req, res, next) => {
         height: result.height,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get video upload configuration
+ *
+ * GET /api/upload/video-config
+ * Admin endpoint
+ *
+ * Videos are too large to route through the backend (Vercel's serverless
+ * functions reject request bodies over ~4.5MB). Instead, the admin panel
+ * uploads videos DIRECTLY to Cloudinary from the browser using an unsigned
+ * upload preset. This endpoint returns the preset + cloud name needed to
+ * build that direct upload request.
+ */
+export const getVideoUploadConfig = async (req, res, next) => {
+  try {
+    const config = await getOrCreateVideoUploadPreset();
+
+    res.status(200).json({
+      success: true,
+      cloudName: config.cloudName,
+      presetName: config.presetName,
+      folder: config.folder,
+      maxSizeMb: 100,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Log a direct video upload to the activity log
+ *
+ * POST /api/upload/log
+ * Admin endpoint
+ *
+ * Videos are uploaded directly to Cloudinary from the browser (to bypass
+ * Vercel's serverless request-body limit), so the backend never sees the file.
+ * The frontend calls this endpoint after a successful direct upload to keep
+ * the admin audit trail complete.
+ */
+export const logVideoUpload = async (req, res, next) => {
+  try {
+    const { videoUrl, publicId, fileName, size } = req.body;
+
+    if (!videoUrl) {
+      throw ErrorTypes.BAD_REQUEST('Video URL is required');
+    }
+
+    await ActivityLog.create({
+      'admin.id': req.user._id,
+      'admin.name': req.user.name,
+      'admin.email': req.user.email,
+      action: 'upload_video',
+      resourceType: 'video',
+      resourceId: publicId || videoUrl,
+      changesSummary: `Uploaded video: ${fileName || 'video'}${size ? ` (${size} bytes)` : ''}`,
+      newValue: { videoUrl, publicId, size },
+    });
+
+    res.status(200).json({ success: true });
   } catch (error) {
     next(error);
   }

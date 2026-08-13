@@ -4,6 +4,8 @@
  * POST /api/upload - Upload single image (admin)
  * POST /api/upload/multiple - Upload multiple images (admin)
  * POST /api/upload/metadata - Get image metadata (admin)
+ * GET /api/upload/video-config - Cloudinary config for direct video uploads (admin)
+ * POST /api/upload/log - Log a direct video upload to the audit trail (admin)
  */
 
 import express from 'express';
@@ -14,6 +16,8 @@ import {
   uploadImageFile,
   uploadMultipleImages,
   getImageMetadata,
+  getVideoUploadConfig,
+  logVideoUpload,
 } from '../controllers/uploadController.js';
 import { authenticate, authorize } from '../middleware/authMiddleware.js';
 
@@ -75,5 +79,12 @@ router.use(authorize('super_admin', 'editor'));
 router.post('/', upload.single('file'), uploadImageFile);
 router.post('/multiple', upload.array('files', 10), uploadMultipleImages);
 router.post('/metadata', getImageMetadata);
+
+// Config for direct browser video uploads to Cloudinary (bypasses Vercel's
+// serverless request-body limit, so large videos don't fail with "payload too large")
+router.get('/video-config', getVideoUploadConfig);
+
+// Audit log entry for direct (browser-to-Cloudinary) video uploads
+router.post('/log', logVideoUpload);
 
 export default router;

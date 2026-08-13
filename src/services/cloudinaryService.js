@@ -101,6 +101,57 @@ export const uploadImage = async (filePath, folder = 'mad-over-tiramisu', public
 };
 
 /**
+ * Unsigned upload preset for direct browser video uploads.
+ *
+ * Videos are often 50-100MB — far larger than Vercel's ~4.5MB serverless
+ * request-body limit. To avoid "payload too large" errors, the admin panel
+ * uploads videos DIRECTLY from the browser to Cloudinary using an unsigned
+ * upload preset (no signature needed). This function creates that preset
+ * once via Cloudinary's Admin API and is safe to call on every request.
+ */
+const VIDEO_UPLOAD_PRESET_NAME = 'mad-over-tiramisu-video';
+const VIDEO_UPLOAD_FOLDER = 'mad-over-tiramisu/videos';
+
+/**
+ * Ensure the unsigned video upload preset exists and return its config.
+ *
+ * Idempotent: creates the preset on the first call, reuses it afterwards.
+ *
+ * @returns {Promise<{cloudName: string, presetName: string, folder: string}>}
+ */
+export const getOrCreateVideoUploadPreset = async () => {
+  try {
+    const { cloud_name: cloudName } = cloudinary.config();
+
+    // Check existing presets to avoid duplicate creation
+    const { presets = [] } = await cloudinary.api.upload_presets({
+      max_results: 100,
+    });
+    const existing = presets.find((p) => p.name === VIDEO_UPLOAD_PRESET_NAME);
+
+    if (!existing) {
+      await cloudinary.api.create_upload_preset({
+        name: VIDEO_UPLOAD_PRESET_NAME,
+        unsigned: true,
+        folder: VIDEO_UPLOAD_FOLDER,
+        resource_type: 'auto',
+        allowed_formats: ['mp4', 'webm', 'mov', 'avi', '3gp', 'mkv', 'ogg', 'ogv'],
+      });
+      console.log(`✅ Created unsigned upload preset: ${VIDEO_UPLOAD_PRESET_NAME}`);
+    }
+
+    return {
+      cloudName,
+      presetName: VIDEO_UPLOAD_PRESET_NAME,
+      folder: VIDEO_UPLOAD_FOLDER,
+    };
+  } catch (error) {
+    console.error('Video Upload Preset Error:', error);
+    throw ErrorTypes.INTERNAL_SERVER_ERROR('Failed to configure video uploads');
+  }
+};
+
+/**
  * Delete media (image or video) from Cloudinary
  *
  * @param {string} publicId - Cloudinary public ID of image or video
